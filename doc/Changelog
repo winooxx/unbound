@@ -1,3 +1,29 @@
+2 August 2023: George
+	- Move a cache reply callback in worker.c closer to the cache reply
+	  generation.
+
+1 August 2023: George
+	- Merge #911 from natalie-reece: Exclude EDE before other EDNS options
+	  when there isn't enough space.
+	- For #911: Try to trim EXTRA-TEXT (and LDNS_EDE_OTHER options
+	  altogether) before giving up on attaching EDE options.
+	- More braces and formatting for Fix for EDNS EDE size calculation to
+	  avoid future bugs.
+	- Fix to use the now cached EDE, if any, for CD_bit queries.
+
+1 August 2023: Wouter
+	- Fix for EDNS EDE size calculation.
+
+31 July 2023: George
+	- Merge #790 from Tom Carpay: Add support for EDE caching in cachedb
+	  and subnetcache.
+
+31 July 2023: Wouter
+	- iana portlist update.
+
+30 July 2023: George
+	- Merge #759 from Tom Carpay: Add EDE (RFC8914) caching.
+
 28 July 2023: George
 	- Fix unused variable compile warning for kernel timestamps in
 	  netevent.c
