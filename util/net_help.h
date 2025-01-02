@@ -290,6 +290,18 @@ int sockaddr_cmp_addr(struct sockaddr_storage* addr1, socklen_t len1,
 	struct sockaddr_storage* addr2, socklen_t len2);
 
 /**
+ * Compare two sockaddrs. Imposes an ordering on the addresses.
+ * Compares address and port. It also compares scope_id for ip6.
+ * @param addr1: address 1.
+ * @param len1: lengths of addr1.
+ * @param addr2: address 2.
+ * @param len2: lengths of addr2.
+ * @return: 0 if addr1 == addr2. -1 if addr1 is smaller, +1 if larger.
+ */
+int sockaddr_cmp_scopeid(struct sockaddr_storage* addr1, socklen_t len1,
+	struct sockaddr_storage* addr2, socklen_t len2);
+
+/**
  * Checkout address family.
  * @param addr: the sockaddr to examine.
  * @param len: the length of addr.
@@ -363,6 +375,14 @@ void addr_to_nat64(const struct sockaddr_storage* addr,
 int addr_is_ip4mapped(struct sockaddr_storage* addr, socklen_t addrlen);
 
 /**
+ * See if sockaddr is an ipv6 fe80::/10 link local address.
+ * @param addr: address
+ * @param addrlen: length of address
+ * @return true if so
+ */
+int addr_is_ip6linklocal(struct sockaddr_storage* addr, socklen_t addrlen);
+
+/**
  * See if sockaddr is 255.255.255.255.
  * @param addr: address
  * @param addrlen: length of address
@@ -430,6 +450,24 @@ void log_crypto_err(const char* str);
 void log_crypto_err_code(const char* str, unsigned long err);
 
 /**
+ * Log an error from libcrypto that came from SSL_write and so on, with
+ * a value from SSL_get_error, calls log_err. If that fails it logs with
+ * log_crypto_err.
+ * @param str: what failed
+ * @param r: output of SSL_get_error on the I/O operation result.
+ */
+void log_crypto_err_io(const char* str, int r);
+
+/**
+ * Log an error from libcrypt that came from an I/O routine with the
+ * errcode from ERR_get_error. Calls log_err() and log_crypto_err_code.
+ * @param str: what failed
+ * @param r: output of SSL_get_error on the I/O operation result.
+ * @param err: error code from ERR_get_error
+ */
+void log_crypto_err_io_code(const char* str, int r, unsigned long err);
+
+/**
  * Log certificate details verbosity, string, of X509 cert
  * @param level: verbosity level
  * @param str: string to prefix on output
@@ -450,7 +488,7 @@ int listen_sslctx_setup(void* ctxt);
  */
 void listen_sslctx_setup_2(void* ctxt);
 
-/** 
+/**
  * create SSL listen context
  * @param key: private key file.
  * @param pem: public key cert.
@@ -545,5 +583,14 @@ int netblockdnametoaddr(uint8_t* dname, size_t dnamelen,
 char* sock_strerror(int errn);
 /** close the socket with close, or wsa closesocket */
 void sock_close(int socket);
+
+/**
+ * Convert binary data to a string of hexadecimal characters.
+ */
+ssize_t hex_ntop(uint8_t const *src, size_t srclength, char *target,
+		 size_t targsize);
+
+/** Convert hexadecimal data to binary. */
+ssize_t hex_pton(const char* src, uint8_t* target, size_t targsize);
 
 #endif /* NET_HELP_H */

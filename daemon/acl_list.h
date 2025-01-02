@@ -64,8 +64,12 @@ enum acl_access {
 	acl_allow,
 	/** allow full access for all queries, recursion and cache snooping */
 	acl_allow_snoop,
-	/** allow full access for recursion queries and set RD flag regardless of request */
-	acl_allow_setrd
+	/** allow full access for recursion queries and set RD flag regardless
+	 *  of request */
+	acl_allow_setrd,
+	/** allow full access for recursion (+RD) queries if valid cookie
+	 *  present or stateful transport */
+	acl_allow_cookie
 };
 
 /**
@@ -142,9 +146,6 @@ acl_interface_insert(struct acl_list* acl_interface,
  */
 int acl_list_apply_cfg(struct acl_list* acl, struct config_file* cfg,
 	struct views* v);
-
-/** compare ACL interface "addr_tree" nodes (+port) */
-int acl_interface_compare(const void* k1, const void* k2);
 
 /**
  * Initialise (also clean) the acl_interface struct.

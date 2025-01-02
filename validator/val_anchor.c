@@ -1018,7 +1018,7 @@ anchors_assemble_rrsets(struct val_anchors* anchors)
 				ta->name, LDNS_RR_TYPE_DNSKEY, ta->dclass);
 		}
 		if(nods == ta->numDS && nokey == ta->numDNSKEY) {
-			char b[257];
+			char b[LDNS_MAX_DOMAINLEN];
 			dname_str(ta->name, b);
 			log_warn("trust anchor %s has no supported algorithms,"
 				" the anchor is ignored (check if you need to"
@@ -1321,4 +1321,25 @@ anchor_has_keytag(struct val_anchors* anchors, uint8_t* name, int namelabs,
 	}
 	free(taglist);
 	return 0;
+}
+
+struct trust_anchor*
+anchors_find_any_noninsecure(struct val_anchors* anchors)
+{
+	struct trust_anchor* ta, *next;
+	lock_basic_lock(&anchors->lock);
+	ta=(struct trust_anchor*)rbtree_first(anchors->tree);
+	while((rbnode_type*)ta != RBTREE_NULL) {
+		next = (struct trust_anchor*)rbtree_next(&ta->node);
+		lock_basic_lock(&ta->lock);
+		if(ta->numDS != 0 || ta->numDNSKEY != 0) {
+			/* not an insecurepoint */
+			lock_basic_unlock(&anchors->lock);
+			return ta;
+		}
+		lock_basic_unlock(&ta->lock);
+		ta = next;
+	}
+	lock_basic_unlock(&anchors->lock);
+	return NULL;
 }

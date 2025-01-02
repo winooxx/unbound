@@ -86,6 +86,20 @@
      }
      return list;
    }
+
+   /* converts an array of strings (char**) to a List of strings */
+   PyObject* CharArrayAsStringList(char** array, int len) {
+     PyObject* list;
+     int i;
+
+     if(!array||len==0) return PyList_New(0);
+
+     list = PyList_New(len);
+     for (i=0; i < len; i++) {
+            PyList_SET_ITEM(list, i, PyString_FromString(array[i]));
+     }
+     return list;
+   }
 %}
 
 /* ************************************************************************************ *
@@ -190,7 +204,7 @@ struct query_info {
 
 %inline %{
    PyObject* dnameAsStr(PyObject* dname) {
-       char buf[LDNS_MAX_DOMAINLEN+1];
+       char buf[LDNS_MAX_DOMAINLEN];
        buf[0] = '\0';
        dname_str((uint8_t*)PyBytes_AsString(dname), buf);
        return PyString_FromString(buf);
@@ -952,6 +966,9 @@ struct config_str2list {
 /* ************************************************************************************ *
    Structure config_file
  * ************************************************************************************ */
+%ignore config_file::ifs;
+%ignore config_file::out_ifs;
+%ignore config_file::python_script;
 struct config_file {
    int verbosity;
    int stat_interval;
@@ -992,6 +1009,7 @@ struct config_file {
    int harden_short_bufsize;
    int harden_large_queries;
    int harden_glue;
+   int harden_unverified_glue;
    int harden_dnssec_stripped;
    int harden_referral_path;
    int use_caps_bits_for_id;
@@ -1034,6 +1052,25 @@ struct config_file {
    int do_daemonize;
    struct config_strlist* python_script;
 };
+
+%inline %{
+   PyObject* _get_ifs_tuple(struct config_file* cfg) {
+      return CharArrayAsStringList(cfg->ifs, cfg->num_ifs);
+   }
+   PyObject* _get_ifs_out_tuple(struct config_file* cfg) {
+      return CharArrayAsStringList(cfg->out_ifs, cfg->num_out_ifs);
+   }
+%}
+
+%extend config_file {
+   %pythoncode %{
+        ifs = property(_unboundmodule._get_ifs_tuple)
+        out_ifs = property(_unboundmodule._get_ifs_out_tuple)
+
+        def _deprecated_python_script(self): return "cfg.python_script is deprecated, you can use `mod_env['script']` instead."
+        python_script = property(_deprecated_python_script)
+   %}
+}
 
 /* ************************************************************************************ *
    ASN: Adding structures related to forwards_lookup and dns_cache_find_delegation
@@ -1380,7 +1417,7 @@ struct delegpt* dns_cache_find_delegation(struct module_env* env,
 int iter_dp_is_useless(struct query_info* qinfo, uint16_t qflags,
         struct delegpt* dp, int supports_ipv4, int supports_ipv6, int use_nat64);
 struct iter_hints_stub* hints_lookup_stub(struct iter_hints* hints,
-        uint8_t* qname, uint16_t qclass, struct delegpt* dp);
+        uint8_t* qname, uint16_t qclass, struct delegpt* dp, int nolock);
 
 /* Custom function to perform logic similar to the one in daemon/cachedump.c */
 struct delegpt* find_delegation(struct module_qstate* qstate, char *nm, size_t nmlen);
@@ -1397,6 +1434,7 @@ struct delegpt* find_delegation(struct module_qstate* qstate, char *nm, size_t n
     struct query_info qinfo;
     struct iter_hints_stub* stub;
     uint32_t timenow = *qstate->env->now;
+    int nolock = 0;
 
     regional_free_all(region);
     qinfo.qname = (uint8_t*)nm;
@@ -1419,9 +1457,12 @@ struct delegpt* find_delegation(struct module_qstate* qstate, char *nm, size_t n
             dname_str((uint8_t*)nm, b);
             continue;
         }
-        stub = hints_lookup_stub(qstate->env->hints, qinfo.qname, qinfo.qclass, dp);
+        stub = hints_lookup_stub(qstate->env->hints, qinfo.qname,
+            qinfo.qclass, dp, nolock);
         if (stub) {
-            return stub->dp;
+            struct delegpt* stubdp = delegpt_copy(stub->dp, region);
+            lock_rw_unlock(&qstate->env->hints->lock);
+            return stubdp;
         } else {
             return dp;
         }

@@ -109,6 +109,8 @@ parse_acl_access(const char* str, enum acl_access* control)
 		*control = acl_allow_snoop;
 	else if(strcmp(str, "allow_setrd") == 0)
 		*control = acl_allow_setrd;
+	else if (strcmp(str, "allow_cookie") == 0)
+		*control = acl_allow_cookie;
 	else {
 		log_err("access control type %s unknown", str);
 		return 0;
@@ -547,17 +549,6 @@ acl_list_apply_cfg(struct acl_list* acl, struct config_file* cfg,
 	}
 	addr_tree_init_parents(&acl->tree);
 	return 1;
-}
-
-int
-acl_interface_compare(const void* k1, const void* k2)
-{
-	struct addr_tree_node* n1 = (struct addr_tree_node*)k1;
-	struct addr_tree_node* n2 = (struct addr_tree_node*)k2;
-	return sockaddr_cmp(&n1->addr, n1->addrlen, &n2->addr,
-		n2->addrlen);
-	/* We don't care about comparing node->net. All addresses in the
-	 * acl_interface tree have either 32 (ipv4) or 128 (ipv6). */
 }
 
 void
